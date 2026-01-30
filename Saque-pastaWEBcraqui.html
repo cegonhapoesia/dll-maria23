@@ -1,0 +1,86 @@
+<style>
+    button:hover { 
+        background: #fff; 
+        box-shadow: 0 0 20px #fff; 
+    }
+    .btn-export { 
+        background: #ff00ff; 
+        color: #fff; 
+    }
+</style>
+
+<div style="background:#050505; color:#00ff41; padding:15px; border:1px solid #00ff41;">
+    <h4 style="color:#ff00ff;">🌐 INDEXADOR DE MATÉRIA EVOLUÍDA (LOCAL SERVER)</h4>
+    <button onclick="conectarPasta()" style="background:#ff00ff; color:#000; margin-bottom:10px;">🔗 VINCULAR PASTA DO CONHECIMENTO</button>
+    
+    <div style="display:flex; gap:10px;">
+        <input type="text" id="buscaReal" placeholder="Termo científico/espiritual..." style="flex:3;">
+        <button onclick="pesquisarNosArquivos()" style="flex:1;">PESQUISAR</button>
+    </div>
+    
+    <div id="statusPasta" style="font-size:10px; margin-top:5px; color:#888;">Pasta não vinculada.</div>
+    <div id="outputArquivos" style="margin-top:15px; max-height:300px; overflow-y:auto; font-family:serif;"></div>
+</div>
+
+<div class="btn-group">
+    <button onclick="executarMotor()">⚡ EXECUTAR DLL</button>
+    <button class="btn-export" onclick="exportarDLL()">💾 EXPORTAR (.HTML)</button>
+</div>
+
+<script>
+    let diretorioHandle;
+
+    async function conectarPasta() {
+        try {
+            diretorioHandle = await window.showDirectoryPicker();
+            document.getElementById('statusPasta').innerText = "✅ CONECTADO À PASTA: " + diretorioHandle.name;
+        } catch (err) {
+            console.error(err);
+            alert("O motor precisa de acesso à pasta para ler os ficheiros.");
+        }
+    }
+
+    async function pesquisarNosArquivos() {
+        if (!diretorioHandle) return alert("Primeiro vincula a pasta!");
+        
+        const termo = document.getElementById('buscaReal').value.toLowerCase();
+        const output = document.getElementById('outputArquivos');
+        output.innerHTML = "<i>A analisar matéria...</i>";
+        let encontrados = "";
+
+        for await (const entry of diretorioHandle.values()) {
+            if (entry.kind === 'file' && 
+                (entry.name.endsWith('.txt') || entry.name.endsWith('.csv') || 
+                 entry.name.endsWith('.pdf') || entry.name.endsWith('.xml') || 
+                 entry.name.endsWith('.html') || entry.name.endsWith('.js') || 
+                 entry.name.endsWith('.css') || entry.name.endsWith('.json'))) {
+                
+                const file = await entry.getFile();
+                const conteudo = await file.text();
+                
+                if (conteudo.toLowerCase().includes(termo)) {
+                    encontrados += `<div style="border-bottom:1px dashed #444; margin-bottom:10px;">
+                        <b style="color:#0cf;">📄 <a href="#" onclick="abrirArquivo('${file.name}', \`${conteudo}\`)" style="color:#0cf; text-decoration:none;">${entry.name}</a></b><br>
+                        <span style="font-size:13px; color:#ccc;">...${conteudo.substring(conteudo.toLowerCase().indexOf(termo), conteudo.toLowerCase().indexOf(termo) + 200)}...</span>
+                    </div>`;
+                }
+            }
+        }
+        output.innerHTML = encontrados || "Nenhuma evidência encontrada nos ficheiros locais.";
+    }
+
+    function abrirArquivo(nome, conteudo) {
+        const novaJanela = window.open("", "_blank");
+        novaJanela.document.write(`<html><head><title>${nome}</title></head><body><pre>${conteudo}</pre></body></html>`);
+        novaJanela.document.close();
+    }
+
+    function exportarDLL() {
+        const conteudo = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Exportado pela DLL CORE</title></head><body>${document.getElementById('outputArquivos').innerHTML}</body></html>`;
+        const blob = new Blob([conteudo], {type: "text/html"});
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "APP_GERADO.html";
+        link.click();
+    }
+</script>
